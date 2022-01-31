@@ -19,7 +19,6 @@ import (
 	"path"
 	"strings"
 	"testing"
-	"testing/iotest"
 	"time"
 )
 
@@ -231,10 +230,6 @@ func TestMethodsErrors(t *testing.T) {
 	}
 	if e.Error() != expected {
 		t.Errorf("Got %q want %q", e, expected)
-	}
-
-	if _, e = c.ScanReader(ctx, iotest.ErrReader(io.ErrUnexpectedEOF)); e != io.ErrUnexpectedEOF {
-		t.Errorf("Expected ErrUnexpectedEOF got %q", e)
 	}
 }
 
@@ -476,6 +471,12 @@ func TestMethods(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("reader error gets propagated", func(t *testing.T) {
+		if _, e = c.ScanReader(ctx, &errReader{io.ErrUnexpectedEOF}); e != io.ErrUnexpectedEOF {
+			t.Errorf("Expected ErrUnexpectedEOF got %q", e)
+		}
+	})
 }
 
 func copyFile(src, dst string, mode os.FileMode) error {
@@ -497,6 +498,14 @@ func copyFile(src, dst string, mode os.FileMode) error {
 		return err
 	}
 	return os.Chmod(dst, mode)
+}
+
+type errReader struct {
+	err error
+}
+
+func (r *errReader) Read(p []byte) (int, error) {
+	return 0, r.err
 }
 
 type eofReader struct {
